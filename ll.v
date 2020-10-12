@@ -696,7 +696,33 @@ Inductive context_match2n A : nat → {mset ll} → {mset ll} → {mset ll} → 
 Lemma context_match2Pn Γ n A Δ1 Δ2 :
   Γ ∪ msetM n (mset1 A) = Δ1 ∪ Δ2 →
   context_match2n A n Γ Δ1 Δ2.
-Proof. Admitted.
+Proof.
+move=> e.
+pose m1  := minn (Δ1 A) n.
+pose m2  := n - m1.
+pose Δ1' := Δ1 ∖ msetM m1 (mset1 A).
+pose Δ2' := Δ2 ∖ msetM m2 (mset1 A).
+have en : n = m1 + m2.
+  by rewrite /m2 addnC subnK // geq_minr.
+have eΔ1 : Δ1 = Δ1' ∪ msetM m1 (mset1 A).
+  apply/eq_ffun=> B; rewrite msetUE msetDE msetME mset1E.
+  case: (A =P B) => [<-|_]; last by rewrite muln0 subn0 addn0.
+  by rewrite subnK // muln1 geq_minl.
+have e12 : Γ A + n = Δ1 A + Δ2 A.
+  by move/eq_ffun/(_ A): (e); rewrite !msetUE msetME mset1E eqxx muln1.
+have l2 : n <= Δ1 A + Δ2 A by rewrite -e12 leq_addl.
+have {}l2 : m2 <= Δ2 A.
+  rewrite leq_subLR /m1; case: (ltngtP (Δ1 A) n)=> //.
+  by rewrite leq_addr.
+have eΔ2 : Δ2 = Δ2' ∪ msetM m2 (mset1 A).
+  apply/eq_ffun=> B; rewrite msetUE msetDE msetME mset1E.
+  case: (A =P B) => [<-|_]; last by rewrite muln0 subn0 addn0.
+  by rewrite subnK // muln1.
+have eΓ : Γ = Δ1' ∪ Δ2'.
+  move: e; rewrite eΔ1 eΔ2 msetUA (ACl (1*3*(2*4))) /= -msetMDl -en.
+  by apply: msetIU.
+by rewrite en eΓ eΔ1 eΔ2; constructor.
+Qed.
 
 Inductive context_match21 A B : {mset ll} → {mset ll} → {mset ll} → Type :=
 | ContextMatch21Eq Δ1 Δ2 of A = B
