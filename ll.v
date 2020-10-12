@@ -689,6 +689,15 @@ have [in2|/suppPn e2] := boolP (A \in supp Δ2).
 by move/eq_ffun/(_ A): e; rewrite !msetUE mset1E eqxx e1 e2 addn1.
 Qed.
 
+Inductive context_match2n A : nat → {mset ll} → {mset ll} → {mset ll} → Type :=
+| ContextMatch2n m n Γ Δ :
+  context_match2n A (m + n) (Γ ∪ Δ) (Γ ∪ msetM m (mset1 A)) (Δ ∪ msetM n (mset1 A)).
+
+Lemma context_match2Pn Γ n A Δ1 Δ2 :
+  Γ ∪ msetM n (mset1 A) = Δ1 ∪ Δ2 →
+  context_match2n A n Γ Δ1 Δ2.
+Proof. Admitted.
+
 Inductive context_match21 A B : {mset ll} → {mset ll} → {mset ll} → Type :=
 | ContextMatch21Eq Δ1 Δ2 of A = B
 : context_match21 A B (Δ1 ∪ Δ2) Δ1 Δ2
@@ -1058,15 +1067,214 @@ Qed.
 
 Lemma banged_ctx_contr Γ Δ A :
   banged_ctx Δ →
-  Γ ∪ Δ ⊢cf A →
-  Γ ∪ Δ ∪ Δ ⊢cf A.
+  Γ ∪ Δ ∪ Δ ⊢cf A →
+  Γ ∪ Δ ⊢cf A.
 Proof.
 elim/mset_rect: Δ Γ=> [|B Δ IH] Γ; rewrite ?msetU0 //.
 rewrite banged_ctxU banged_ctx1 andbC.
 case: B=> //= B /IH {}IH.
-rewrite msetUA (ACl (1*3*2)) /= => /IH.
-rewrite (ACl (1*3*4*2)) /= => {}IH.
-by rewrite !msetUA (ACl (1*3*4*2*5)) /=; eauto.
+rewrite !msetUA (ACl (1*3*5*2*4)) /= => /IH.
+by rewrite (ACl (1*4*2*3)) /= => {}IH; eauto.
+Qed.
+
+Definition cut_right_gen Γ A Δ B : Type :=
+  ∀ n Δ', Δ' ∪ msetM n (mset1 A) = Δ → msetM n Γ ∪ Δ' ⊢cf B.
+
+Lemma cut_rightW Γ A Δ B : cut_right_gen Γ A Δ B → cut_right Γ A Δ B.
+Proof.
+move=> H Δ'.
+rewrite -[mset1 A]msetM1 -[Γ]msetM1.
+exact: H.
+Qed.
+
+Lemma cut_elim_comm_axiom_gen Γ A B :
+  Γ ⊢cf A →
+  cut_right_gen Γ A (mset1 B) B.
+Proof.
+move=> dA [|n].
+- move=> ?; rewrite msetM0 msetU0 => ->.
+  by rewrite msetM0 mset0U; eauto.
+- move=> ?; rewrite msetMS [mset1 A ∪ _]msetUC msetUA.
+  move=> /msetU1_eq1 [/eqP e <-].
+  rewrite msetU_eq0 msetM_eq0 in e.
+  case/andP: e=> [/eqP -> e].
+  case: n e=> [|n] //=; last first.
+    by move=> /eqP/(congr1 mcard); rewrite mcard1 mcard0.
+  by rewrite msetM1 msetU0.
+Qed.
+
+Lemma cut_elim_comm_L1L_gen Γ Δ A C :
+  A != 1 →
+  cut_right_gen Γ A Δ C →
+  cut_right_gen Γ A (Δ ∪ mset1 1) C.
+Proof.
+move=> ne IH n Δ' e.
+case/mset_decPn1: Δ' Δ / e IH=> // Δ IH.
+rewrite msetUA; by move/(_ _ _ erefl) in IH; eauto.
+Qed.
+
+Lemma cut_elim_comm_L1R_gen Γ A : cut_right_gen Γ A ∅ 1.
+Proof.
+move=> [|n] Δ.
+- by rewrite !msetM0 msetU0 => ->; rewrite msetU0; eauto.
+- by rewrite -addn1 msetMDl msetM1 msetUA=> /msetU1_eq0.
+Qed.
+
+Lemma cut_elim_comm_LWithL1_gen Γ Δ A B1 B2 C :
+  A != B1 × B2 →
+  cut_right_gen Γ A (Δ ∪ mset1 B1) C →
+  cut_right_gen Γ A (Δ ∪ mset1 (B1 × B2)) C.
+Proof.
+move=> ne IH n Δ' e.
+case/mset_decPn1: Δ' Δ / e IH=> // Δ IH.
+rewrite msetUA.
+rewrite (ACl (1*3*2)) /= in IH; move/(_ _ _ erefl) in IH.
+by rewrite msetUA in IH; eauto.
+Qed.
+
+Lemma cut_elim_comm_LWithL2_gen Γ Δ A B1 B2 C :
+  A != B1 × B2 →
+  cut_right_gen Γ A (Δ ∪ mset1 B2) C →
+  cut_right_gen Γ A (Δ ∪ mset1 (B1 × B2)) C.
+Proof.
+move=> ne IH n Δ' e.
+case/mset_decPn1: Δ' Δ / e IH=> // Δ IH.
+rewrite msetUA.
+rewrite (ACl (1*3*2)) /= in IH; move/(_ _ _ erefl) in IH.
+by rewrite msetUA in IH; eauto.
+Qed.
+
+Lemma cut_elim_comm_LWithR_gen Γ Δ A B1 B2 :
+  cut_right_gen Γ A Δ B1 →
+  cut_right_gen Γ A Δ B2 →
+  cut_right_gen Γ A Δ (B1 × B2).
+Proof. rewrite /cut_right_gen; by eauto. Qed.
+
+Lemma cut_elim_comm_LTensL_gen Γ Δ A B1 B2 C :
+  A != B1 ⊗ B2 →
+  cut_right_gen Γ A (Δ ∪ mset1 B1 ∪ mset1 B2) C →
+  cut_right_gen Γ A (Δ ∪ mset1 (B1 ⊗ B2)) C.
+Proof.
+move=> ne IH n Δ' e.
+case/mset_decPn1: Δ' Δ / e IH=> // Δ IH.
+rewrite msetUA.
+rewrite (ACl (1*3*4*2)) /= in IH; move/(_ _ _ erefl) in IH.
+by rewrite !msetUA in IH; eauto.
+Qed.
+
+Lemma cut_elim_comm_LTensR_gen Γ A Δ1 B1 Δ2 B2 :
+  Δ1 ⊢cf B1 →
+  cut_right_gen Γ A Δ1 B1 →
+  Δ2 ⊢cf B2 →
+  cut_right_gen Γ A Δ2 B2 →
+  cut_right_gen Γ A (Δ1 ∪ Δ2) (B1 ⊗ B2).
+Proof.
+rewrite /cut_right_gen; move=> d1 IH1 d2 IH2 n Δ' e.
+case/context_match2Pn: n Δ' Δ1 Δ2 / e d1 IH1 d2 IH2=> m n Δ1 Δ2 d1 IH1 d2 IH2.
+move/(_ _ _ erefl) in IH1.
+move/(_ _ _ erefl) in IH2.
+by rewrite msetMDl msetUA (ACl ((1*3)*(2*4))) /=; eauto.
+Qed.
+
+Lemma cut_elim_comm_LLoliL_gen Γ A Δ1 B1 Δ2 B2 C :
+  A != (B1 ⊸ B2) →
+  Δ1 ⊢cf B1 →
+  cut_right_gen Γ A Δ1 B1 →
+  Δ2 ∪ mset1 B2 ⊢cf C →
+  cut_right_gen Γ A (Δ2 ∪ mset1 B2) C →
+  cut_right_gen Γ A (Δ1 ∪ Δ2 ∪ mset1 (B1 ⊸ B2)) C.
+Proof.
+move=> ne d1 IH1 d2 IH2 n Δ' e.
+move eΔ: (Δ1 ∪ Δ2) e => Δ e.
+case/mset_decPn1: Δ' Δ / e eΔ=> // Δ /esym e.
+case/context_match2Pn: n Δ Δ1 Δ2 / e d1 IH1 d2 IH2=> n1 n2 Δ1 Δ2.
+rewrite [Δ2 ∪ _ ∪ _](ACl (1*3*2)) /=.
+move=> d1 /(_ _ _ erefl) IH1 d2 /(_ _ _ erefl) IH2.
+rewrite msetUA in IH2.
+rewrite msetMDl !msetUA (ACl (1*3*(2*4)*5)) /=.
+by eauto.
+Qed.
+
+Lemma cut_elim_comm_LLoliR_gen Γ A Δ B1 B2 :
+  cut_right_gen Γ A (Δ ∪ mset1 B1) B2 →
+  cut_right_gen Γ A Δ (B1 ⊸ B2).
+Proof.
+rewrite /cut_right_gen => IH n Δ' e.
+rewrite -e (ACl (1*3*2)) /= in IH.
+by move/(_ _ _ erefl) in IH; rewrite msetUA in IH; eauto.
+Qed.
+
+Lemma cut_elim_comm_LPlusL_gen Γ A Δ B1 B2 C :
+  A != B1 ⊕ B2 →
+  cut_right_gen Γ A (Δ ∪ mset1 B1) C →
+  cut_right_gen Γ A (Δ ∪ mset1 B2) C →
+  cut_right_gen Γ A (Δ ∪ mset1 (B1 ⊕ B2)) C.
+Proof.
+move=> ne IH1 IH2 n Δ' e.
+case/mset_decPn1: Δ' Δ / e IH1 IH2=> // Δ.
+rewrite (ACl (1*3*2)) /= => /(_ _ _ erefl).
+rewrite msetUA=> IH1.
+rewrite (ACl (1*3*2)) /= => /(_ _ _ erefl).
+rewrite msetUA=> IH2.
+by rewrite msetUA; eauto.
+Qed.
+
+Lemma cut_elim_comm_LPlusR1_gen Γ A Δ B1 B2 :
+  cut_right_gen Γ A Δ B1 →
+  cut_right_gen Γ A Δ (B1 ⊕ B2).
+Proof. by rewrite /cut_right_gen => ????; apply: LPlusR1'; eauto. Qed.
+
+Lemma cut_elim_comm_LPlusR2_gen Γ A Δ B1 B2 :
+  cut_right_gen Γ A Δ B2 →
+  cut_right_gen Γ A Δ (B1 ⊕ B2).
+Proof. by rewrite /cut_right_gen; eauto. Qed.
+
+Lemma cut_elim_comm_LWeak_gen Γ A Δ B C :
+  A != !B →
+  cut_right_gen Γ A Δ C →
+  cut_right_gen Γ A (Δ ∪ mset1 !B) C.
+Proof.
+move=> ne IH n Δ' e.
+case/mset_decPn1: Δ' Δ / e IH => // Δ.
+by move=> /(_ _ Δ erefl); rewrite msetUA; eauto.
+Qed.
+
+Lemma cut_elim_comm_LContr_gen Γ A Δ B C :
+  A != !B →
+  cut_right_gen Γ A (Δ ∪ mset1 !B ∪ mset1 !B) C →
+  cut_right_gen Γ A (Δ ∪ mset1 !B) C.
+Proof.
+move=> ne IH n Δ' e.
+case/mset_decPn1: Δ' Δ / e IH => // Δ.
+rewrite (ACl (1*3*4*2)) /=.
+by move=> /(_ _ _ erefl); rewrite !msetUA; eauto.
+Qed.
+
+Lemma cut_elim_comm_LDerel_gen Γ A Δ B C :
+  A != !B →
+  cut_right_gen Γ A (Δ ∪ mset1 B) C →
+  cut_right_gen Γ A (Δ ∪ mset1 !B) C.
+Proof.
+move=> ne IH n Δ' e.
+case/mset_decPn1: Δ' Δ / e IH => // Δ.
+rewrite (ACl (1*3*2)) /=.
+by move=> /(_ _ _ erefl); rewrite !msetUA; eauto.
+Qed.
+
+Lemma cut_elim_comm_LProm_gen Γ A Δ C :
+  banged A ==> banged_ctx Γ →
+  banged_ctx Δ →
+  cut_right_gen Γ A Δ  C →
+  cut_right_gen Γ A Δ !C.
+Proof.
+move=> bΓ bΔ IH n Δ' e; subst Δ; move/(_ _ _ erefl) in IH.
+move: bΔ; rewrite banged_ctxU; case/andP=> bΔ bA.
+move: bA bΓ; rewrite banged_ctxM banged_ctx1.
+case: (n =P 0) IH=> /= [->|_].
+  by rewrite msetM0 mset0U; eauto.
+move=> IH -> /= bΓ.
+suff ?: banged_ctx (msetM n Γ ∪ Δ') by eauto.
+by rewrite banged_ctxU banged_ctxM bΓ orbT.
 Qed.
 
 Lemma cut_left_bang Γ A :
@@ -1075,41 +1283,58 @@ Lemma cut_left_bang Γ A :
   (∀ Γ, Γ ⊢cf A → cut_left Γ A) →
   cut_left Γ !A.
 Proof.
-move=> bΓ dA IHA Δ B.
-elim: Δ B / => //=.
-- move=> _ A' -> ? /msetU1_eq1 [-> <-]; rewrite msetU0; eauto.
-- by move=> _ ?? -> _; apply: cut_elim_comm_L1L.
-- by move=> _ ->; apply: cut_elim_comm_L1R.
-- by move=> _ ???? -> _; apply: cut_elim_comm_LWithL1.
-- by move=> _ ???? -> _; apply: cut_elim_comm_LWithL2.
-- by move=> ??? _ IH1 _ IH2; apply: cut_elim_comm_LWithR.
-- by move=> _ ???? -> _; apply: cut_elim_comm_LTensL.
-- by move=> _ ???? ->; apply: cut_elim_comm_LTensR.
-- by move=> _ ????? ->; apply: cut_elim_comm_LLoliL.
-- by move=> ??? _; apply: cut_elim_comm_LLoliR.
-- move=> _ ???? -> _ IH1 _ IH2; by apply: cut_elim_comm_LPlusL.
-- by move=> ??? _; apply: cut_elim_comm_LPlusR1.
-- by move=> ??? _; apply: cut_elim_comm_LPlusR2.
-- move=> _ Δ C B -> dB IHdB Δ'.
-  have [{C} [<-]|ne e] := altP (!A =P !C).
-    move=> /msetIU => ->; by apply: banged_ctx_weak.
-  case/mset_decP11: Δ' Δ / e dB IHdB=> // Δ dB IHdB.
-  by move/(_ _ erefl): IHdB; rewrite msetUA; eauto.
-- move=> _ Δ C B -> dB IHdB Δ'. admit.
+move=> bΓ dA IHA Δ B dB; apply: cut_rightW.
+elim: Δ B / dB => //=.
+- by move=> ?? ->; apply: cut_elim_comm_axiom_gen; eauto.
+- by move=> _ ?? -> _; apply: cut_elim_comm_L1L_gen.
+- by move=> _ ->; apply: cut_elim_comm_L1R_gen.
+- by move=> _ ???? -> _; apply: cut_elim_comm_LWithL1_gen.
+- by move=> _ ???? -> _; apply: cut_elim_comm_LWithL2_gen.
+- by move=> ??? _ IH1 _ IH2; apply: cut_elim_comm_LWithR_gen.
+- by move=> _ ???? -> _; apply: cut_elim_comm_LTensL_gen.
+- by move=> _ ???? ->; apply: cut_elim_comm_LTensR_gen.
+- by move=> _ ????? ->; apply: cut_elim_comm_LLoliL_gen.
+- by move=> ??? _; apply: cut_elim_comm_LLoliR_gen.
+- move=> _ ???? -> _ IH1 _ IH2; by apply: cut_elim_comm_LPlusL_gen.
+- by move=> ??? _; apply: cut_elim_comm_LPlusR1_gen.
+- by move=> ??? _; apply: cut_elim_comm_LPlusR2_gen.
+- move=> _ Δ C B -> dB IHdB.
+  have [{C} [<-]|ne] := altP (!A =P !C); first case=> [|n].
+  + move=> Δ'; rewrite !msetM0 msetU0 mset0U => {Δ'}->.
+    by apply: LWeak'.
+  + move=> Δ'; rewrite !msetMS msetUA (ACl (1*3*2)) -[Γ ∪ _ ∪ _]msetUA /=.
+    move=> /msetIU /IHdB dB'; by apply: banged_ctx_weak.
+  move=> n Δ' e.
+  case/mset_decPn1: Δ' Δ / e dB IHdB=> // Δ dB IHdB.
+  by move/(_ _ _ erefl): IHdB; rewrite msetUA; eauto.
 - move=> _ Δ C B ->.
   have [{C} [<-]|ne] := altP (!A =P !C).
-    move=> dB IHdB _ /msetIU ->.
-    by move/IHA/(_ _ _ dB _ erefl): dA.
-  move=> dB IHdB Δ' e.
-  case/mset_decP11: Δ' Δ / e dB IHdB=> // Δ dB IHdB.
-  rewrite (ACl (1*3*2)) /= in dB IHdB.
-  by move/(_ _ erefl): IHdB; rewrite !msetUA; eauto.
-- move=> Δ B bΔ dB IHdB Δ' eΔ; subst Δ.
-  rewrite banged_ctxU banged_ctx1 andbC /= in bΔ.
-  move/(_ _ erefl): IHdB.
-  have ?: banged_ctx (Γ ∪ Δ') by rewrite banged_ctxU bΓ.
-  by eauto.
-Admitted.
+    move=> dB IHdB [|n] Δ'.
+  + by rewrite !msetM0 msetU0 mset0U => ->; apply: LContr'.
+  + move=> /(congr1 (msetU ^~ (mset1 !A))).
+    rewrite (ACl (1*(3*2))) /= -msetMS => /IHdB.
+    rewrite !msetMS !msetUA.
+    rewrite (ACl (3*4*1*2)) /= [Γ ∪ _ ∪ _](ACl (2*3*1)) /=.
+    by apply: banged_ctx_contr.
+  move=> dB IHdB n Δ' e.
+  case/mset_decPn1: Δ' Δ / e dB IHdB=> // Δ dB IHdB.
+  move: IHdB; rewrite (ACl (1*3*4*2)) /= => /(_ _ _ erefl).
+  by rewrite !msetUA; eauto.
+- move=> _ Δ C B ->.
+  have [{C} [<-]|ne] := altP (!A =P !C).
+    move=> dB IHdB [|n] Δ'.
+  + by rewrite !msetM0 msetU0 mset0U => ->; apply: LDerel'.
+  + rewrite msetMS msetUA (ACl (1*3*2)) /= => /msetIU ?; subst Δ.
+    move: IHdB; rewrite (ACl (1*3*2)) /= => /(_ _ _ erefl).
+    rewrite msetUA=> {}dB.
+    move/(_ _ dA _ _ dB _ erefl): IHA.
+    by rewrite msetUA -msetMS.
+  by move=> _; apply: cut_elim_comm_LDerel_gen.
+- move=> Δ B bΔ dB IHdB n Δ' eΔ'; subst Δ.
+  move/(_ _ _ erefl): IHdB; apply: LProm'.
+  move: bΔ; rewrite !banged_ctxU !banged_ctxM bΓ orbT.
+  by case/andP.
+Qed.
 
 Lemma cut_elim_aux A Γ : Γ ⊢cf A → cut_left Γ A.
 Proof.
@@ -1169,3 +1394,5 @@ elim: Γ A /; try by move=> *; subst; eauto.
 move=> _ Δ1 Δ2 A B -> _ d1 _ d2.
 by apply: cut_elim_aux; eauto.
 Qed.
+
+End Derivations.
