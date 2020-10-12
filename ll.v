@@ -128,6 +128,18 @@ Qed.
 Lemma msetU0 : right_id mset0 msetU.
 Proof. by move=> m; rewrite msetUC mset0U. Qed.
 
+Lemma mset1_eq0 x : (mset1 x == ∅) = false.
+Proof. by apply/negbTE/eqP=> /eq_ffun/(_ x); rewrite mset1E eqxx. Qed.
+
+Lemma msetU_eq0 m1 m2 : (m1 ∪ m2 == ∅) = (m1 == ∅) && (m2 == ∅).
+Proof.
+apply/(sameP eqP)/(iffP andP).
+  by move=> [/eqP -> /eqP ->]; rewrite mset0U.
+move=> /eq_ffun e; split; apply/eqP/eq_ffun=> x; apply/eqP.
+- by move/(_ x)/eqP: e; rewrite msetUE mset0E addn_eq0; case/andP.
+- by move/(_ x)/eqP: e; rewrite msetUE mset0E addn_eq0; case/andP.
+Qed.
+
 Lemma eq_msetU1 m1 m2 x y :
   m1 ∪ mset1 x = m2 ∪ mset1 y →
   x != y →
@@ -139,6 +151,51 @@ split; apply/eq_ffun=> z; move/(_ z): e; rewrite ?(msetUE, msetDE, mset1E).
   by rewrite (negbTE ne) addn0=> ->; rewrite addnK.
 - case: (altP (y =P z))=> [<-|ne']; rewrite ?(addn0, subn0) //.
   by rewrite (negbTE ne) !addn0 addn1 subn1 => ->.
+Qed.
+
+Definition msetM n m : {mset T} :=
+  mkffun (λ x, n * m x) (supp m).
+
+Lemma msetME n m x : msetM n m x = n * m x.
+Proof.
+rewrite mkffunE.
+by case: ifPn=> // /suppPn ->; rewrite muln0.
+Qed.
+
+Lemma msetM0 m : msetM 0 m = ∅.
+Proof. by apply/eq_ffun=> x; rewrite msetME. Qed.
+
+Lemma msetMn0 n : msetM n ∅ = ∅.
+Proof. by apply/eq_ffun=> x; rewrite msetME muln0. Qed.
+
+Lemma msetM1 m : msetM 1 m = m.
+Proof. by apply/eq_ffun=> x; rewrite msetME mul1n. Qed.
+
+Lemma msetMDl n1 n2 m : msetM (n1 + n2) m = msetM n1 m ∪ msetM n2 m.
+Proof.
+by apply/eq_ffun=> x; rewrite !(msetME, msetUE) mulnDl.
+Qed.
+
+Lemma msetMS n m : msetM n.+1 m = m ∪ msetM n m.
+Proof. by rewrite -addn1 msetMDl msetM1 msetUC. Qed.
+
+Lemma msetMDr n m1 m2 : msetM n (m1 ∪ m2) = msetM n m1 ∪ msetM n m2.
+Proof.
+by apply/eq_ffun=> x; rewrite !(msetME, msetUE) mulnDr.
+Qed.
+
+Lemma supp_msetM n m : supp (msetM n m) = if n == 0 then fset0 else supp m.
+Proof.
+elim: n=> [|n IH] //=; rewrite ?msetM0 ?supp0 //.
+rewrite msetMS supp_msetU {}IH.
+by case: (n)=> //=; rewrite ?fsetU0 ?fsetUid.
+Qed.
+
+Lemma msetM_eq0 n m : (msetM n m == ∅) = (n == 0) || (m == ∅).
+Proof.
+elim: n=> [|n IH]; first by rewrite msetM0 eqxx.
+rewrite msetMS msetU_eq0 {}IH.
+by case: n (m == ∅)=> [|?] [].
 Qed.
 
 Definition msetn n x : {mset T} :=
@@ -336,6 +393,9 @@ Proof. by rewrite /banged_ctx supp_msetU all_fsetU. Qed.
 
 Lemma banged_ctx1 A : banged_ctx (mset1 A) = banged A.
 Proof. by rewrite /banged_ctx supp_mset1 /= andbT. Qed.
+
+Lemma banged_ctxM n Γ : banged_ctx (msetM n Γ) = (n == 0) || banged_ctx Γ.
+Proof. by rewrite /banged_ctx supp_msetM; case: ifP. Qed.
 
 Inductive derivation Γ : ll → Type :=
 | LAxiom A
