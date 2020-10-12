@@ -293,6 +293,70 @@ elim: n @m1 IH=> [|n IH]; rewrite /= ?mset0U ?msetn0 ?mset0U //.
 by rewrite msetnS (ACl (1*3*2)) /= => ?; apply: H1; apply: IH.
 Qed.
 
+Lemma msetU1_eq1 m x y : m ∪ mset1 x = mset1 y → (m, x) = (∅, y).
+Proof.
+move=> e; move/eq_ffun/(_ x): (e).
+rewrite msetUE !mset1E eqxx addn1.
+case: (y =P _) e=> // -> e _.
+by move: e; rewrite -[X in _ = X]mset0U=> /msetIU ->.
+Qed.
+
+Lemma msetU1_eq0 m x : m ∪ mset1 x ≠ ∅.
+Proof.
+move/eq_ffun/(_ x).
+by rewrite msetUE mset1E eqxx addn1 mset0E.
+Qed.
+
+Inductive mset_dec Δ1 Δ2 : {mset T} → {mset T} → Type :=
+| MSetDec Γ : mset_dec Δ1 Δ2 (Γ ∪ Δ2) (Γ ∪ Δ1).
+
+Lemma mset_decP m11 m12 m21 m22 :
+  fdisjoint (supp m12) (supp m22) →
+  m11 ∪ m12 = m21 ∪ m22 →
+  mset_dec m12 m22 m11 m21.
+Proof.
+move=> ne e.
+pose m := m11 ∖ m22.
+have em : m11 = m ∪ m22.
+  apply/eq_ffun=> x; move/eq_ffun/(_ x): (e).
+  rewrite !msetUE msetDE.
+  have [xin|/suppPn ->] := boolP (x \in supp m12).
+    move/(fdisjointP _ _ ne)/suppPn: xin=> ->.
+    by rewrite subn0 !addn0.
+  by rewrite addn0=> ->; rewrite addnK.
+move: m em e => {}m11 ->.
+by rewrite (ACl (1*3*2)) /= => /msetIU <-.
+Qed.
+
+Lemma mset_decPnn n1 n2 x1 x2 m1 m2 :
+  x1 != x2 →
+  m1 ∪ msetM n1 (mset1 x1) = m2 ∪ msetM n2 (mset1 x2) →
+  mset_dec (msetM n1 (mset1 x1)) (msetM n2 (mset1 x2)) m1 m2.
+Proof.
+move=> ne; apply: mset_decP.
+apply/fdisjointP=> y.
+rewrite !mem_supp !msetME !mset1E.
+case: (x1 =P y)=> [<-|] // _.
+- by rewrite [x2 == x1]eq_sym (negbTE ne) muln0.
+- by rewrite muln0.
+Qed.
+
+Lemma mset_decPn1 n1 x1 x2 m1 m2 :
+  x1 != x2 →
+  m1 ∪ msetM n1 (mset1 x1) = m2 ∪ mset1 x2 →
+  mset_dec (msetM n1 (mset1 x1)) (mset1 x2) m1 m2.
+Proof.
+rewrite -[mset1 x2]msetM1; apply: mset_decPnn.
+Qed.
+
+Lemma mset_decP11 x1 x2 m1 m2 :
+  x1 != x2 →
+  m1 ∪ mset1 x1 = m2 ∪ mset1 x2 →
+  mset_dec (mset1 x1) (mset1 x2) m1 m2.
+Proof.
+rewrite -[mset1 x1]msetM1 -[mset1 x2]msetM1; apply: mset_decPnn.
+Qed.
+
 End MSet.
 
 Bind Scope mset_scope with mset_of.
@@ -597,37 +661,6 @@ Inductive derivation_cf Γ : ll → Type :=
 
 where " Γ ⊢cf A" := (derivation_cf Γ A).
 
-Inductive context_match1 A B : {mset ll} -> {mset ll} -> Type :=
-| ContextMatch1Eq Γ of A = B : context_match1 A B Γ Γ
-| ContextMatch1Neq Γ of A != B : context_match1 A B (Γ ∪ mset1 B) (Γ ∪ mset1 A).
-
-Lemma context_match1P Γ A Δ B :
-  Γ ∪ mset1 A = Δ ∪ mset1 B →
-  context_match1 A B Γ Δ.
-Proof.
-have [{B} <- /eq_ffun e|ne e] := altP (A =P B).
-  have <- : Γ = Δ.
-    apply/eq_ffun=> C; move/(_ C): e.
-    rewrite !msetUE; exact: addIn.
-  by constructor.
-have [? [-> ->]] := eq_msetU1 e ne.
-eauto using context_match1.
-Qed.
-
-Lemma msetU_eq1 Γ A B : Γ ∪ mset1 A = mset1 B → (Γ, A) = (∅, B).
-Proof.
-move=> e; move/eq_ffun/(_ A): (e).
-rewrite msetUE !mset1E eqxx addn1.
-case: (B =P _) e=> // -> e _.
-by move: e; rewrite -[X in _ = X]mset0U=> /msetIU ->.
-Qed.
-
-Lemma msetU1_eq0 Γ A : Γ ∪ mset1 A ≠ ∅.
-Proof.
-move/eq_ffun/(_ A).
-by rewrite msetUE mset1E eqxx addn1 mset0E.
-Qed.
-
 Inductive context_match2 A : {mset ll} → {mset ll} → {mset ll} → Type :=
 | ContextMatch2L Γ Δ : context_match2 A (Γ ∪ Δ) (Γ ∪ mset1 A) Δ
 | ContextMatch2R Γ Δ : context_match2 A (Γ ∪ Δ) Γ (Δ ∪ mset1 A).
@@ -668,10 +701,10 @@ Lemma context_match21P Γ A Δ1 Δ2 B :
   Γ ∪ mset1 A = Δ1 ∪ Δ2 ∪ mset1 B →
   context_match21 A B Γ Δ1 Δ2.
 Proof.
+have [{B} <-|ne] := altP (A =P B).
+  move=> /msetIU ->; exact: ContextMatch21Eq.
 move e: (Δ1 ∪ Δ2)=> Δ e'.
-case/context_match1P: Γ Δ / e' e.
-  by move=> _ ? <-; eauto using context_match21.
-move=> Γ ne /esym e.
+case/mset_decP11: Γ Δ / e' e=> // Γ /esym e.
 by case/context_match2P: Γ Δ1 Δ2 / e=> Δ1 Δ2; eauto using context_match21.
 Qed.
 
@@ -684,7 +717,7 @@ Lemma cut_elim_comm_axiom Γ A B :
   Γ ⊢cf A →
   cut_right Γ A (mset1 B) B.
 Proof.
-by move=> dA Δ /msetU_eq1 [-> <-]; rewrite msetU0.
+by move=> dA Δ /msetU1_eq1 [-> <-]; rewrite msetU0.
 Qed.
 
 Lemma cut_elim_comm_L1L Γ Δ A C :
@@ -693,8 +726,8 @@ Lemma cut_elim_comm_L1L Γ Δ A C :
   cut_right Γ A (Δ ∪ mset1 1) C.
 Proof.
 move=> ne IH Δ' e.
-case/context_match1P: Δ' Δ / e IH ne=> [? ->|]; first by rewrite eqxx.
-move=> Δ _ IH _; rewrite msetUA.
+case/mset_decP11: Δ' Δ / e IH=> //.
+move=> Δ IH; rewrite msetUA.
 by move/(_ _ erefl) in IH; eauto.
 Qed.
 
@@ -707,8 +740,8 @@ Lemma cut_elim_comm_LWithL1 Γ Δ A B1 B2 C :
   cut_right Γ A (Δ ∪ mset1 (B1 × B2)) C.
 Proof.
 move=> ne IH Δ' e.
-case/context_match1P: Δ' Δ / e IH ne=> [? ->|]; first by rewrite eqxx.
-move=> Δ _ IH _; rewrite msetUA.
+case/mset_decP11: Δ' Δ / e IH=> //.
+move=> Δ IH; rewrite msetUA.
 rewrite (ACl (1*3*2)) /= in IH; move/(_ _ erefl) in IH.
 by rewrite msetUA in IH; eauto.
 Qed.
@@ -719,8 +752,8 @@ Lemma cut_elim_comm_LWithL2 Γ Δ A B1 B2 C :
   cut_right Γ A (Δ ∪ mset1 (B1 × B2)) C.
 Proof.
 move=> ne IH Δ' e.
-case/context_match1P: Δ' Δ / e IH ne=> [? ->|]; first by rewrite eqxx.
-move=> Δ _ IH _; rewrite msetUA.
+case/mset_decP11: Δ' Δ / e IH=> //.
+move=> Δ IH; rewrite msetUA.
 rewrite (ACl (1*3*2)) /= in IH; move/(_ _ erefl) in IH.
 by rewrite msetUA in IH; eauto.
 Qed.
@@ -737,8 +770,8 @@ Lemma cut_elim_comm_LTensL Γ Δ A B1 B2 C :
   cut_right Γ A (Δ ∪ mset1 (B1 ⊗ B2)) C.
 Proof.
 move=> ne IH Δ' e.
-case/context_match1P: Δ' Δ / e IH ne=> [? ->|]; first by rewrite eqxx.
-move=> Δ _ IH _; rewrite msetUA.
+case/mset_decP11: Δ' Δ / e IH=> //.
+move=> Δ IH; rewrite msetUA.
 rewrite (ACl (1*3*4*2)) /= in IH; move/(_ _ erefl) in IH.
 by rewrite !msetUA in IH; eauto.
 Qed.
@@ -789,8 +822,8 @@ Lemma cut_elim_comm_LPlusL Γ A Δ B1 B2 C :
   cut_right Γ A (Δ ∪ mset1 (B1 ⊕ B2)) C.
 Proof.
 move=> ne IH1 IH2 Δ' e.
-case/context_match1P: Δ' Δ / e ne IH1 IH2=> [? ->|Δ]; first by rewrite eqxx.
-move=> _ _ /(_ (Δ ∪ mset1 B1)).
+case/mset_decP11: Δ' Δ / e IH1 IH2=> // Δ.
+move=> /(_ (Δ ∪ mset1 B1)).
 rewrite (ACl (1*3*2)) /= !msetUA => /(_ erefl) IH1.
 move=> /(_ (Δ ∪ mset1 B2)).
 rewrite (ACl (1*3*2)) /= msetUA => /(_ erefl) IH2.
@@ -813,8 +846,8 @@ Lemma cut_elim_comm_LWeak Γ A Δ B C :
   cut_right Γ A (Δ ∪ mset1 !B) C.
 Proof.
 move=> ne IH Δ' e.
-case/context_match1P: Δ' Δ / e ne IH=> [? ->|Δ]; first by rewrite eqxx.
-by move=> _ _ /(_ Δ erefl); rewrite msetUA; eauto.
+case/mset_decP11: Δ' Δ / e IH=> // Δ.
+by move=> /(_ Δ erefl); rewrite msetUA; eauto.
 Qed.
 
 Lemma cut_elim_comm_LContr Γ A Δ B C :
@@ -823,9 +856,9 @@ Lemma cut_elim_comm_LContr Γ A Δ B C :
   cut_right Γ A (Δ ∪ mset1 !B) C.
 Proof.
 move=> ne IH Δ' e.
-case/context_match1P: Δ' Δ / e ne IH=> [? ->|Δ]; first by rewrite eqxx.
+case/mset_decP11: Δ' Δ / e IH=> // Δ.
 rewrite (ACl (1*3*4*2)) /=.
-by move=> _ _ /(_ _ erefl); rewrite !msetUA; eauto.
+by move=> /(_ _ erefl); rewrite !msetUA; eauto.
 Qed.
 
 Lemma cut_elim_comm_LDerel Γ A Δ B C :
@@ -834,9 +867,9 @@ Lemma cut_elim_comm_LDerel Γ A Δ B C :
   cut_right Γ A (Δ ∪ mset1 !B) C.
 Proof.
 move=> ne IH Δ' e.
-case/context_match1P: Δ' Δ / e ne IH=> [? ->|Δ]; first by rewrite eqxx.
+case/mset_decP11: Δ' Δ / e IH=> // Δ.
 rewrite (ACl (1*3*2)) /=.
-by move=> _ _ /(_ _ erefl); rewrite !msetUA; eauto.
+by move=> /(_ _ erefl); rewrite !msetUA; eauto.
 Qed.
 
 Lemma cut_elim_comm_LProm Γ A Δ C :
@@ -1044,7 +1077,7 @@ Lemma cut_left_bang Γ A :
 Proof.
 move=> bΓ dA IHA Δ B.
 elim: Δ B / => //=.
-- move=> _ A' -> ? /msetU_eq1 [-> <-]; rewrite msetU0; eauto.
+- move=> _ A' -> ? /msetU1_eq1 [-> <-]; rewrite msetU0; eauto.
 - by move=> _ ?? -> _; apply: cut_elim_comm_L1L.
 - by move=> _ ->; apply: cut_elim_comm_L1R.
 - by move=> _ ???? -> _; apply: cut_elim_comm_LWithL1.
@@ -1057,18 +1090,18 @@ elim: Δ B / => //=.
 - move=> _ ???? -> _ IH1 _ IH2; by apply: cut_elim_comm_LPlusL.
 - by move=> ??? _; apply: cut_elim_comm_LPlusR1.
 - by move=> ??? _; apply: cut_elim_comm_LPlusR2.
-- move=> _ Δ C B -> dB IHdB Δ' e.
-  case/context_match1P: Δ' Δ / e dB IHdB=> [Δ _|Δ ne] dB IHdB.
-    by apply: banged_ctx_weak.
+- move=> _ Δ C B -> dB IHdB Δ'.
+  have [{C} [<-]|ne e] := altP (!A =P !C).
+    move=> /msetIU => ->; by apply: banged_ctx_weak.
+  case/mset_decP11: Δ' Δ / e dB IHdB=> // Δ dB IHdB.
   by move/(_ _ erefl): IHdB; rewrite msetUA; eauto.
-- move=> _ Δ C B -> dB IHdB Δ' e.
-  case/context_match1P: Δ' Δ / e dB IHdB=> [Δ {C}<-|Δ ne] dB IHdB.
-    admit.
-  rewrite (ACl (1*3*4*2)) /= in dB IHdB.
-  by move/(_ _ erefl): IHdB; rewrite !msetUA; eauto.
-- move=> _ Δ C B -> dB IHdB Δ' e.
-  case/context_match1P: Δ' Δ / e dB IHdB=> [Δ {C}[<-]|Δ ne] dB IHdB.
+- move=> _ Δ C B -> dB IHdB Δ'. admit.
+- move=> _ Δ C B ->.
+  have [{C} [<-]|ne] := altP (!A =P !C).
+    move=> dB IHdB _ /msetIU ->.
     by move/IHA/(_ _ _ dB _ erefl): dA.
+  move=> dB IHdB Δ' e.
+  case/mset_decP11: Δ' Δ / e dB IHdB=> // Δ dB IHdB.
   rewrite (ACl (1*3*2)) /= in dB IHdB.
   by move/(_ _ erefl): IHdB; rewrite !msetUA; eauto.
 - move=> Δ B bΔ dB IHdB Δ' eΔ; subst Δ.
