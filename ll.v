@@ -680,6 +680,13 @@ Hint Constructors derivation_cf : core.
 Definition cut_right Γ A Δ B : Type :=
   ∀ Δ', Δ' ∪ mset1 A = Δ → Γ ∪ Δ' ⊢cf B.
 
+Lemma cut_elim_comm_axiom Γ A B :
+  Γ ⊢cf A →
+  cut_right Γ A (mset1 B) B.
+Proof.
+by move=> dA Δ /msetU_eq1 [-> <-]; rewrite msetU0.
+Qed.
+
 Lemma cut_elim_comm_L1L Γ Δ A C :
   A != 1 →
   cut_right Γ A Δ C →
@@ -847,7 +854,7 @@ Definition cut_left Γ A := ∀ Δ B, Δ ⊢cf B → cut_right Γ A Δ B.
 Lemma cut_left_1 : cut_left ∅ 1.
 Proof.
 move=> Δ B; elim: Δ B / => //=.
-- by move=> _ A' -> Γ /msetU_eq1 [-> <-]; rewrite msetU0; eauto.
+- by move=> ?? ->; apply: cut_elim_comm_axiom; eauto.
 - by move=> _ Δ' B -> d IH Γ /msetIU ->; rewrite mset0U.
 - by move=> _ -> Γ /msetU1_eq0 [].
 - by move=> _ ???? -> _; apply: cut_elim_comm_LWithL1.
@@ -875,7 +882,7 @@ Lemma cut_left_tens Γ1 A1 Γ2 A2 :
 Proof.
 move=> dA1 IHdA1 dA2 IHdA2 Δ B.
 elim: Δ B / => //=.
-- by move=> _ A' -> Γ /msetU_eq1 [-> <-]; rewrite msetU0; eauto.
+- by move=> ?? ->; apply: cut_elim_comm_axiom; eauto.
 - by move=> _ ?? -> _; apply: cut_elim_comm_L1L.
 - by move=> _ ->; apply: cut_elim_comm_L1R.
 - by move=> _ ???? -> _; apply: cut_elim_comm_LWithL1.
@@ -908,7 +915,7 @@ Lemma cut_left_with Γ A1 A2 :
 Proof.
 move=> dA1 IHdA1 dA2 IHdA2 Δ B.
 elim: Δ B / => //=.
-- by move=> _ A' -> ? /msetU_eq1 [-> <-]; rewrite msetU0; eauto.
+- by move=> ?? ->; apply: cut_elim_comm_axiom; eauto.
 - by move=> _ ?? -> _; apply: cut_elim_comm_L1L.
 - by move=> _ ->; apply: cut_elim_comm_L1R.
 - move=> _ Δ C1 C2 B ->.
@@ -943,7 +950,7 @@ Lemma cut_left_loli Γ A1 A2 :
 Proof.
 move=> IHdA1 dA2 IHdA2 Δ B.
 elim: Δ B / => //=.
-- by move=> _ A' -> ? /msetU_eq1 [-> <-]; rewrite msetU0; eauto.
+- by move=> ?? ->; apply: cut_elim_comm_axiom; eauto.
 - by move=> _ ?? -> _; apply: cut_elim_comm_L1L.
 - by move=> _ ->; apply: cut_elim_comm_L1R.
 - by move=> _ ???? -> _; apply: cut_elim_comm_LWithL1.
@@ -981,7 +988,7 @@ Lemma cut_left_plus Γ A1 A2 :
 Proof.
 move=> dA IHA1 IHA2 Δ B.
 elim: Δ B / => //=.
-- by move=> _ A' -> ? /msetU_eq1 [-> <-]; rewrite msetU0; eauto.
+- by move=> ?? ->; apply: cut_elim_comm_axiom; eauto.
 - by move=> _ ?? -> _; apply: cut_elim_comm_L1L.
 - by move=> _ ->; apply: cut_elim_comm_L1R.
 - by move=> _ ???? -> _; apply: cut_elim_comm_LWithL1.
