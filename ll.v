@@ -388,9 +388,9 @@ Inductive ll :=
 | LBang of ll.
 
 Definition ll_indMixin :=
-  [indMixin for ll_rect].
+  [indDef for ll_rect].
 Canonical ll_indType :=
-  IndType _ ll ll_indMixin.
+  IndType ll ll_indMixin.
 Definition ll_eqMixin :=
   [derive eqMixin for ll].
 Canonical ll_eqType :=
@@ -408,13 +408,13 @@ Bind Scope ll_scope with ll.
 
 Notation "1" := L1 (at level 0) : ll_scope.
 Notation "A ⊗ B" := (LTens A B)
-  (at level 20, left associativity) : ll_scope.
+  (at level 50, left associativity) : ll_scope.
 Notation "A × B" := (LWith A B)
-  (at level 20, left associativity) : ll_scope.
+  (at level 50, left associativity) : ll_scope.
 Notation "A ⊸ B" := (LLoli A B)
-  (at level 30, right associativity) : ll_scope.
+  (at level 55, right associativity) : ll_scope.
 Notation "A ⊕ B" := (LPlus A B)
-  (at level 25, left associativity) : ll_scope.
+  (at level 40, left associativity) : ll_scope.
 Notation "! A" := (LBang A)
   (at level 9, format "! A") : ll_scope.
 
